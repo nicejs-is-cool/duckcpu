@@ -25,7 +25,7 @@ Instructions are specified in this syntax:
 	example(1, aa) -> 0b0001 [00]00
 	like such, the first 2-bits after the opcode is "aa".
 
-Stack grows up (stack pointer goes up every push), every element must be 64 bits (8 bytes) in size.
+/* Stack grows up (stack pointer goes up every push), every element must be 64 bits (8 bytes) in size. */
 
 Registers:
 	nul: Anything thrown here is voided.
@@ -124,9 +124,9 @@ Instructions:
 		aa specifies the amount of bits. You can calculate it as log^2(bits) - 3
 		
 		Arguments: register[8]
-/*The stack:
-	Grows downwards, can store 1024 values.
-	Stack stores bytes.*/
+The stack:
+	Stack pointer goes up every push, can store 8192 values.
+	Stack stores bytes.
 
 Assembly syntax:
 	Similar to intel syntax.
