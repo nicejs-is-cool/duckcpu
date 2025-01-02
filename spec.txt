@@ -1,0 +1,139 @@
+DuckCPU, little endian.
+
+Instructions are variable-length.
+CPU flags (technically 1 bit each, implementation of emulator can pack
+			this into an array of bool bytes though since they're never accessed directly):
+	E, G, L, C
+Being Equal, Greater, Lesser and Carry respectively.
+opcode is 4 bits, and opcode modifiers are also 4 bits.
+Float = floating point number, 32-bit.
+Long Float = equivalent to double in C, 64-bit.
+Short = 16-bit
+Long = 64-bit
+Integer = 32-bit
+Byte = 8-bits
+All registers are unsigned. (signedness is gonna be handled by instructions so)
+
+Instructions are specified in this syntax:
+	opcode_name(id, modifier): short description
+		details
+	Modifier is a 4-bit value that modifies the original opcode to perform different actions.
+	The amount of times a letter repeats is the number of bits, like this:
+	example(1, aabc)
+	Where aa is 2-bits, b is 1 bit and c is 1 bit as well.
+	If there's not enough letters to fill the 4-bit space it is padded to the *left*.
+	example(1, aa) -> 0b0001 [00]00
+	like such, the first 2-bits after the opcode is "aa".
+
+Stack grows up (stack pointer goes up every push), every element must be 64 bits (8 bytes) in size.
+
+Registers:
+	nul: Anything thrown here is voided.
+	acc: accumulator for mathematical operations (long or integer depends on current CPU mode)
+	la: long register 1
+	lb: long register 2
+	fa: float 1
+	fb: float 2
+	lfa: long float 1
+	lfb: long float 2
+	pc: Program Counter (next instruction to run)
+	sf: stack frame (marks beginning of stack)
+	sp: stack pointer (last item on the stack)
+	facc: accumulator for floating-point mathematical operations
+	lfacc: accumulator for double floating-point mathematical operations
+Instructions:
+	noa(0, aaaa): Instructions with no opcode modifiers.
+		This has 15 sub-instructions defined as aaaa:
+			noop(0): no operation.
+			lea(1): Load effective address.
+				This loads an address dereferenced from a register into another register.
+				Arguments: register[8], register[8]
+			cmp(2): Compare 2 registers.
+				Conditions:
+					- Enables E flag if both registers are equal
+					- Enables G flag if the first register is greater than the second.
+					- Enables L flag if the first register is lesser than the second.
+				Arguments: register[8], register[8]
+			juc(3): jump unconditionally
+				If you want to jump unconditionally from an address specified in a register,
+				just `mov <reg>, pc`. (TODO: add a dedicated instruction for this)
+				Arguments: address[64]
+			cpr(4): Not to be confused with actual CPR. Resets CPU flags to their default state.
+	pmp(1, aaab): Perform mathematical operation.
+		aaa is a 3-bit value that can be either:
+			000: add
+			001: subtract
+			010: multiply
+			011: divide (note: stores remainder in the z register and result in acc)
+			100: remainder/modulo (%)
+			101: potenciation
+			110: square root
+			111: cubic root
+		the b bit specifies if the operation should be run unsigned (0) or signed (1)
+		Arguments are: x(register), y(register), z(register)
+		z is optional and only used with division
+		Reads 2 bytes unless the opcode modifier specifies division, in which case you have to read 3.
+		If this overflows, the C (carry) flag is enabled.
+		Result is stored in acc.
+	rmo(2, abbb): Register and memory operation.
+		a determines if the value should be copied FROM memory (0) or TO memory (1)
+		bbb is a 3-bit value specifying datatype that can be either:
+			000: long value
+			001: integer value
+			010: short value
+			011: byte value
+			100: float value
+			101: double value
+		Arguments: register[8], target[64]
+	putr(3, aaa): Put static data onto a register
+		aaa is a 3-bit value specifying datatype (see rmo's bbb). This is literally only used so you can save space
+		in the executable, it'll become a long or float anyway.
+		Arguments: register[8], data[?]
+	mov(4, ab): Move data between registers
+		If a is 1, the datatype is casted (for example: mov.cc la, fa will convert the long into a proper float value)
+		when b is 1, data is copied and when its 0, data is swapped. (note: reconsider the swapping part maybe? that would likely need the CPU to have a place to temporarily put the variable on)
+		Arguments: register[8], register[8]
+	jmp(5,aaab): Jump to address conditionally.
+		aaa specifies the flag (in order).
+		b specifies if the flag should be enabled or disabled in order to jump. (like an if statement)
+		Arguments for jump instruction: register[8]
+	fpo(6, aaab): Floating-point operation.
+		aaa is a 3-bit value that can be either:
+			000: add
+			001: subtract
+			010: multiply
+			011: divide
+			100: remainder/modulo (%)
+			101: potenciation
+			110: square root
+			111: cubic root
+		Arguments are: x(register), y(register)
+		b bit specifies if this should be run as a float or long float (double) operation.
+		Always reads 2 bytes.
+		Result is stored in acc. Can only access float registers.
+	bst(7, aabb): Basic stack operation
+		aa specifies if the value should be:
+			00 (0): popped
+			01 (1): pushed
+			10 (2): reserved
+			11 (3): reserved
+		/* bb specifies the datatype. You can calculate it as log^2(bits) - 3 */
+		bb is reserved, this instruction always reads 8 bytes.
+		Arguments: register[8]
+	store(8, aa): Store data into a memory address specified by a register.
+		aa specifies the amount of bits. You can calculate it as log^2(bits) - 3
+		
+		Arguments: register[8]
+/*The stack:
+	Grows downwards, can store 1024 values.
+	Stack stores bytes.*/
+
+Assembly syntax:
+	Similar to intel syntax.
+	Registers are prefixed with "%", immediate values are prefixed with "$".
+	If the modifier can be inferred with certainty, the assembler can automatically specify it.
+	But if it cannot, use a "." to split the opcode like this:
+	`opcode_name.mod`
+	For example: `bst.push`, `pmp.mul`
+	Labels are basically the same: name of the label, ":", code follows.
+	
