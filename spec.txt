@@ -123,7 +123,7 @@ Instructions:
 	store(8, aa): Store data into a memory address specified by a register.
 		aa specifies the amount of bits. You can calculate it as log^2(bits) - 3
 		
-		Arguments: register[8]
+		Arguments: register[8], register[8]
 The stack:
 	Stack pointer goes up every push, can store 8192 values.
 	Stack stores bytes.
